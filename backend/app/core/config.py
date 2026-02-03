@@ -123,6 +123,9 @@ class Settings(BaseSettings):
     CALLBACK_CONNECT_TIMEOUT: int = 3
     CALLBACK_READ_TIMEOUT: int = 10
 
+    # Document upload size limit (in MB)
+    MAX_DOCUMENT_UPLOAD_SIZE_MB: int = 50
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def COMPUTED_CELERY_WORKER_CONCURRENCY(self) -> int:

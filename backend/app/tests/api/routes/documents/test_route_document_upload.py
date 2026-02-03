@@ -325,3 +325,100 @@ class TestDocumentRouteUpload:
             assert field in response.data
 
         assert response.data["transformation_job"] is None
+
+    def test_upload_file_exceeds_size_limit(
+        self,
+        db: Session,
+        route: Route,
+        uploader: WebUploader,
+    ) -> None:
+        """Test that files exceeding the size limit are rejected."""
+        aws = AmazonCloudStorageClient()
+        aws.create()
+
+        # Create a file larger than the 50MB limit
+        # For testing purposes, we'll create a 51MB file
+        with NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as fp:
+            # Write 51MB of data (51 * 1024 * 1024 bytes)
+            chunk_size = 1024 * 1024  # 1MB chunks
+            for _ in range(51):
+                fp.write(b"0" * chunk_size)
+            fp.flush()
+            large_file = Path(fp.name)
+
+        try:
+            response = uploader.put(route, large_file)
+            
+            assert response.status_code == 413
+            error_data = response.json()
+            assert "File too large" in error_data["error"]
+            assert "Maximum size: 50MB" in error_data["error"]
+            
+            # Verify no document was created in the database
+            statement = select(Document).where(Document.fname == str(large_file))
+            result = db.exec(statement).first()
+            assert result is None
+        finally:
+            large_file.unlink()
+
+    def test_upload_empty_file(
+        self,
+        db: Session,
+        route: Route,
+        uploader: WebUploader,
+    ) -> None:
+        """Test that empty files are rejected."""
+        aws = AmazonCloudStorageClient()
+        aws.create()
+
+        # Create an empty file
+        with NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as fp:
+            # Don't write anything, just create an empty file
+            fp.flush()
+            empty_file = Path(fp.name)
+
+        try:
+            response = uploader.put(route, empty_file)
+            
+            assert response.status_code == 422
+            error_data = response.json()
+            assert "Empty file uploaded" in error_data["error"]
+            
+            # Verify no document was created in the database
+            statement = select(Document).where(Document.fname == str(empty_file))
+            result = db.exec(statement).first()
+            assert result is None
+        finally:
+            empty_file.unlink()
+
+    def test_upload_file_within_size_limit(
+        self,
+        db: Session,
+        route: Route,
+        uploader: WebUploader,
+    ) -> None:
+        """Test that files within the size limit are accepted."""
+        aws = AmazonCloudStorageClient()
+        aws.create()
+
+        # Create a 1MB file (well within the 50MB limit)
+        with NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as fp:
+            # Write 1MB of data
+            fp.write(b"0" * (1024 * 1024))
+            fp.flush()
+            normal_file = Path(fp.name)
+
+        try:
+            response = httpx_to_standard(uploader.put(route, normal_file))
+            
+            assert response.success is True
+            assert "id" in response.data
+            doc_id = response.data["id"]
+            
+            # Verify document was created in database
+            statement = select(Document).where(Document.id == doc_id)
+            result = db.exec(statement).one()
+            assert result.fname == str(normal_file)
+        finally:
+            normal_file.unlink()
+

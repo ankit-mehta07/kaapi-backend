@@ -34,6 +34,7 @@ from app.services.documents.helpers import (
     build_document_schema,
     build_document_schemas,
 )
+from app.services.documents.validators import validate_document_file
 from app.utils import (
     APIResponse,
     get_openai_client,
@@ -122,6 +123,9 @@ async def upload_doc(
 ):
     if callback_url:
         validate_callback_url(callback_url)
+
+    # Validate file size before uploading to S3
+    await validate_document_file(src)
 
     source_format, actual_transformer = pre_transform_validation(
         src_filename=src.filename,
