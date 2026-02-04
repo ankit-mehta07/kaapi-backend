@@ -19,7 +19,12 @@ def start_job(
     """Create a response job and schedule Celery task."""
     trace_id = correlation_id.get() or "N/A"
     job_crud = JobCrud(session=db)
-    job = job_crud.create(job_type=JobType.RESPONSE, trace_id=trace_id)
+    job = job_crud.create(
+        job_type=JobType.RESPONSE,
+        project_id=project_id,
+        organization_id=organization_id,
+        trace_id=trace_id,
+    )
 
     try:
         task_id = start_high_priority_job(

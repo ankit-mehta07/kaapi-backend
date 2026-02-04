@@ -1,10 +1,15 @@
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.util import now
+
+if TYPE_CHECKING:
+    from .organization import Organization
+    from .project import Project
 
 
 class JobStatus(str, Enum):
@@ -58,6 +63,22 @@ class Job(SQLModel, table=True):
         },
     )
 
+    # Foreign keys
+    organization_id: int = Field(
+        foreign_key="organization.id",
+        nullable=False,
+        ondelete="CASCADE",
+        index=True,
+        sa_column_kwargs={"comment": "Reference to the organization"},
+    )
+    project_id: int = Field(
+        foreign_key="project.id",
+        nullable=False,
+        ondelete="CASCADE",
+        index=True,
+        sa_column_kwargs={"comment": "Reference to the project"},
+    )
+
     # Timestamps
     created_at: datetime = Field(
         default_factory=now,
@@ -67,6 +88,10 @@ class Job(SQLModel, table=True):
         default_factory=now,
         sa_column_kwargs={"comment": "Timestamp when the job was last updated"},
     )
+
+    # Relationships
+    organization: Optional["Organization"] = Relationship()
+    project: Optional["Project"] = Relationship()
 
 
 class JobUpdate(SQLModel):

@@ -12,9 +12,17 @@ class JobCrud:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, job_type: JobType, trace_id: str | None = None) -> Job:
+    def create(
+        self,
+        job_type: JobType,
+        project_id: int,
+        organization_id: int,
+        trace_id: str | None = None,
+    ) -> Job:
         new_job = Job(
             job_type=job_type,
+            project_id=project_id,
+            organization_id=organization_id,
             trace_id=trace_id,
         )
         self.session.add(new_job)
