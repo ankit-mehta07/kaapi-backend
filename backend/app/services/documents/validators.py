@@ -6,11 +6,12 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile
 
 from app.core.config import settings
+from app.utils import mask_string
 
 logger = logging.getLogger(__name__)
 
 # Maximum file size for document uploads (in bytes)
-# Default: 50 MB, configurable via settings
+# Default: 512 MB, configurable via settings
 MAX_DOCUMENT_SIZE = settings.MAX_DOCUMENT_UPLOAD_SIZE_MB * 1024 * 1024
 
 
@@ -23,15 +24,7 @@ async def validate_document_file(file: UploadFile) -> int:
 
     Returns:
         File size in bytes if valid
-
-    Raises:
-        HTTPException: If validation fails
     """
-    if not file.filename:
-        raise HTTPException(
-            status_code=422,
-            detail="File must have a filename",
-        )
 
     # Get file size by seeking to end
     file.file.seek(0, 2)
@@ -50,5 +43,7 @@ async def validate_document_file(file: UploadFile) -> int:
             detail="Empty file uploaded"
         )
 
-    logger.info(f"Document file validated: {file.filename} ({file_size} bytes)")
+    logger.info(
+        f"[validate_document_file] Document file validated: {mask_string(file.filename)} ({file_size} bytes)"
+    )
     return file_size

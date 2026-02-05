@@ -326,6 +326,7 @@ class TestDocumentRouteUpload:
 
         assert response.data["transformation_job"] is None
 
+    @patch("app.services.documents.validators.MAX_DOCUMENT_SIZE", 1024 * 1024)  # Mock to 1MB
     def test_upload_file_exceeds_size_limit(
         self,
         db: Session,
@@ -336,12 +337,12 @@ class TestDocumentRouteUpload:
         aws = AmazonCloudStorageClient()
         aws.create()
 
-        # Create a file larger than the 50MB limit
-        # For testing purposes, we'll create a 51MB file
+        # Create a file larger than the 1MB mock limit
+        # For testing purposes, we'll create a 2MB file
         with NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as fp:
-            # Write 51MB of data (51 * 1024 * 1024 bytes)
+            # Write 2MB of data (2 * 1024 * 1024 bytes)
             chunk_size = 1024 * 1024  # 1MB chunks
-            for _ in range(51):
+            for _ in range(2):
                 fp.write(b"0" * chunk_size)
             fp.flush()
             large_file = Path(fp.name)
@@ -352,7 +353,7 @@ class TestDocumentRouteUpload:
             assert response.status_code == 413
             error_data = response.json()
             assert "File too large" in error_data["error"]
-            assert "Maximum size: 50MB" in error_data["error"]
+            assert "Maximum size: 1MB" in error_data["error"]
             
             # Verify no document was created in the database
             statement = select(Document).where(Document.fname == str(large_file))
@@ -391,6 +392,7 @@ class TestDocumentRouteUpload:
         finally:
             empty_file.unlink()
 
+    @patch("app.services.documents.validators.MAX_DOCUMENT_SIZE", 512 * 1024 * 1024)
     def test_upload_file_within_size_limit(
         self,
         db: Session,
@@ -401,7 +403,7 @@ class TestDocumentRouteUpload:
         aws = AmazonCloudStorageClient()
         aws.create()
 
-        # Create a 1MB file (well within the 50MB limit)
+        # Create a 1MB file (well within the limit)
         with NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as fp:
             # Write 1MB of data
             fp.write(b"0" * (1024 * 1024))
